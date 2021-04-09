@@ -114,7 +114,7 @@ const checkParams = (name, payload, requires = []) => {
 const publicCall = ({ endpoints }) => (path, data, method = 'GET', headers = {}) =>
   sendResult(
     fetch(
-      `${!path.includes('/fapi') ? endpoints.base : endpoints.futures}${path}${makeQueryString(
+      `${!path.match('/[fd]api') ? endpoints.base : endpoints.futures}${path}${makeQueryString(
         data,
       )}`,
       {
@@ -423,5 +423,44 @@ export default opts => {
     futuresPositionMargin: payload => privCall('/fapi/v1/positionMargin', payload, 'POST'),
     futuresMarginHistory: payload => privCall('/fapi/v1/positionMargin/history', payload),
     futuresIncome: payload => privCall('/fapi/v1/income', payload),
+
+    deliveryPing: () => pubCall('/dapi/v1/ping').then(() => true),
+    deliveryTime: () => pubCall('/dapi/v1/time').then(r => r.serverTime),
+    deliveryExchangeInfo: () => pubCall('/dapi/v1/exchangeInfo'),
+    deliveryBook: payload => book(pubCall, payload, '/dapi/v1/depth'),
+    deliveryAggTrades: payload => aggTrades(pubCall, payload, '/dapi/v1/aggTrades'),
+    deliveryMarkPrice: payload => pubCall('/dapi/v1/premiumIndex', payload),
+    deliveryAllForceOrders: payload => pubCall('/dapi/v1/allForceOrders', payload),
+    deliveryCandles: payload => candles(pubCall, payload, '/dapi/v1/klines'),
+    deliveryTrades: payload =>
+      checkParams('trades', payload, ['symbol']) && pubCall('/dapi/v1/trades', payload),
+    deliveryDailyStats: payload => pubCall('/dapi/v1/ticker/24hr', payload),
+    deliveryPrices: () =>
+      pubCall('/dapi/v1/ticker/price').then(r =>
+        (Array.isArray(r) ? r : [r]).reduce((out, cur) => ((out[cur.symbol] = cur.price), out), {}),
+      ),
+    deliveryAllBookTickers: () =>
+      pubCall('/dapi/v1/ticker/bookTicker').then(r =>
+        (Array.isArray(r) ? r : [r]).reduce((out, cur) => ((out[cur.symbol] = cur), out), {}),
+      ),
+    deliveryFundingRate: payload =>
+      checkParams('fundingRate', payload, ['symbol']) && pubCall('/dapi/v1/fundingRate', payload),
+
+    deliveryOrder: payload => order(privCall, payload, '/dapi/v1/order'),
+    deliveryGetOrder: payload => privCall('/dapi/v1/order', payload),
+    deliveryCancelOrder: payload => privCall('/dapi/v1/order', payload, 'DELETE'),
+    deliveryOpenOrders: payload => privCall('/dapi/v1/openOrders', payload),
+    deliveryAllOrders: payload => privCall('/dapi/v1/allOrders', payload),
+    deliveryPositionRisk: payload => privCall('/dapi/v2/positionRisk', payload),
+    deliveryAccountBalance: payload => privCall('/dapi/v2/balance', payload),
+    deliveryAccountInfo: payload => privCall('/dapi/v2/account', payload),
+    deliveryUserTrades: payload => privCall('/dapi/v1/userTrades', payload),
+    deliveryPositionMode: payload => privCall('/dapi/v1/positionSide/dual', payload),
+    deliveryPositionModeChange: payload => privCall('/dapi/v1/positionSide/dual', payload, 'POST'),
+    deliveryLeverage: payload => privCall('/dapi/v1/leverage', payload, 'POST'),
+    deliveryMarginType: payload => privCall('/dapi/v1/marginType', payload, 'POST'),
+    deliveryPositionMargin: payload => privCall('/dapi/v1/positionMargin', payload, 'POST'),
+    deliveryMarginHistory: payload => privCall('/dapi/v1/positionMargin/history', payload),
+    deliveryIncome: payload => privCall('/dapi/v1/income', payload),
   }
 }
